@@ -25,6 +25,13 @@ const DATE_PRESETS = [
   { value: "last_30d", label: "최근 30일" },
 ] as const;
 
+const BREAKDOWN_OPTIONS = [
+  { value: "none", label: "없음 (기본 지표)" },
+  { value: "age_gender", label: "연령 + 성별" },
+  { value: "publisher_platform", label: "게재 위치(Platform)" },
+  { value: "placement", label: "노출 위치(Placement)" },
+] as const;
+
 function ErrorBox({ error }: { error: MetaApiError }) {
   return (
     <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -99,6 +106,8 @@ export default function Home() {
   const [insightsRawJson, setInsightsRawJson] = useState<unknown>(null);
   const [datePreset, setDatePreset] =
     useState<(typeof DATE_PRESETS)[number]["value"]>("last_7d");
+  const [breakdown, setBreakdown] =
+    useState<(typeof BREAKDOWN_OPTIONS)[number]["value"]>("none");
 
   async function handleFetchAccount() {
     setAccountStatus("loading");
@@ -209,7 +218,9 @@ export default function Home() {
 
     try {
       const res = await fetch(
-        `/api/meta/insights?datePreset=${encodeURIComponent(datePreset)}`
+        `/api/meta/insights?datePreset=${encodeURIComponent(
+          datePreset
+        )}&breakdown=${encodeURIComponent(breakdown)}`
       );
       const body = await res.json();
       setInsightsRawJson(body);
@@ -365,6 +376,26 @@ export default function Home() {
                   }`}
                 >
                   {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-gray-500">Breakdown:</span>
+            <div className="flex gap-1">
+              {BREAKDOWN_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setBreakdown(option.value)}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    breakdown === option.value
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {option.label}
                 </button>
               ))}
             </div>

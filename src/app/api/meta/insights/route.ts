@@ -32,6 +32,48 @@ const INSIGHT_FIELDS = [
   "purchase_roas",
 ].join(",");
 
+// breakdown 조회는 문서 14번 섹션 기준으로 최소 필드만 사용한다.
+// (모든 breakdown이 모든 지표 조합을 지원하는 건 아니므로, 기본 지표 조회와
+// breakdown 조회는 완전히 별도의 요청/필드셋으로 분리한다.)
+const BREAKDOWN_INSIGHT_FIELDS = [
+  "campaign_id",
+  "adset_id",
+  "ad_id",
+  "date_start",
+  "date_stop",
+  "spend",
+  "impressions",
+  "clicks",
+  "actions",
+].join(",");
+
+const BREAKDOWN_MAP = {
+  age_gender: "age,gender",
+  publisher_platform: "publisher_platform",
+  placement: "publisher_platform,platform_position",
+} as const;
+
+type BreakdownOption = "none" | keyof typeof BREAKDOWN_MAP;
+const ALLOWED_BREAKDOWNS: readonly BreakdownOption[] = [
+  "none",
+  "age_gender",
+  "publisher_platform",
+  "placement",
+];
+const DEFAULT_BREAKDOWN: BreakdownOption = "none";
+
+function isAllowedBreakdown(value: string): value is BreakdownOption {
+  return (ALLOWED_BREAKDOWNS as readonly string[]).includes(value);
+}
+
+// 클라이언트가 보낸 임의 문자열을 그대로 Meta API에 전달하지 않고 whitelist로만 통과시킨다.
+function resolveBreakdown(rawValue: string | null): BreakdownOption {
+  if (rawValue && isAllowedBreakdown(rawValue)) {
+    return rawValue;
+  }
+  return DEFAULT_BREAKDOWN;
+}
+
 const ALLOWED_DATE_PRESETS = [
   "today",
   "yesterday",
@@ -62,6 +104,7 @@ export async function GET(request: NextRequest) {
     const accountId = getMetaAdAccountId();
     const { searchParams } = new URL(request.url);
     const datePreset = resolveDatePreset(searchParams.get("datePreset"));
+    const breakdown = resolveBreakdown(searchParams.get("breakdown"));
 
     const result = await fetchMeta<MetaInsightsResponse>(
       `/${accountId}/insights`,
@@ -69,7 +112,9 @@ export async function GET(request: NextRequest) {
         level: "ad",
         date_preset: datePreset,
         time_increment: 1,
-        fields: INSIGHT_FIELDS,
+        fields:
+          breakdown === "none" ? INSIGHT_FIELDS : BREAKDOWN_INSIGHT_FIELDS,
+        breakdowns: breakdown === "none" ? undefined : BREAKDOWN_MAP[breakdown],
       }
     );
 

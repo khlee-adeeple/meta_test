@@ -19,11 +19,16 @@ function ActionsList({ actions }: { actions?: MetaAction[] }) {
   );
 }
 
-const COLUMNS = [
-  "날짜",
-  "캠페인",
-  "광고세트",
-  "광고",
+// breakdown 조회일 때만 채워지는 차원. 실제로 값이 있는 컬럼만 테이블에 추가한다.
+const BREAKDOWN_DIMENSIONS = [
+  { key: "age", label: "Age" },
+  { key: "gender", label: "Gender" },
+  { key: "publisher_platform", label: "Platform" },
+  { key: "platform_position", label: "Placement" },
+] as const;
+
+const BASE_COLUMNS = ["날짜", "캠페인", "광고세트", "광고"];
+const METRIC_COLUMNS = [
   "Spend",
   "Impressions",
   "Reach",
@@ -42,12 +47,20 @@ export function InsightTable({ rows }: { rows: MetaInsight[] }) {
     );
   }
 
+  const activeDimensions = BREAKDOWN_DIMENSIONS.filter((dim) =>
+    rows.some((row) => row[dim.key] !== undefined)
+  );
+
   return (
     <div className="overflow-x-auto rounded-md border border-gray-200">
       <table className="min-w-full divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50">
           <tr>
-            {COLUMNS.map((col) => (
+            {[
+              ...BASE_COLUMNS,
+              ...activeDimensions.map((d) => d.label),
+              ...METRIC_COLUMNS,
+            ].map((col) => (
               <th
                 key={col}
                 className="whitespace-nowrap px-3 py-2 text-left font-medium text-gray-500"
@@ -59,7 +72,7 @@ export function InsightTable({ rows }: { rows: MetaInsight[] }) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {rows.map((row, i) => (
-            <tr key={`${row.ad_id ?? "row"}-${row.date_start ?? i}`}>
+            <tr key={`${row.ad_id ?? "row"}-${row.date_start ?? i}-${i}`}>
               <td className="whitespace-nowrap px-3 py-2">
                 {displayValue(row.date_start)}
               </td>
@@ -72,6 +85,11 @@ export function InsightTable({ rows }: { rows: MetaInsight[] }) {
               <td className="whitespace-nowrap px-3 py-2">
                 {displayValue(row.ad_name)}
               </td>
+              {activeDimensions.map((dim) => (
+                <td key={dim.key} className="whitespace-nowrap px-3 py-2">
+                  {displayValue(row[dim.key])}
+                </td>
+              ))}
               <td className="whitespace-nowrap px-3 py-2">
                 {displayValue(row.spend)}
               </td>

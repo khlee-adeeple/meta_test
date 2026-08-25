@@ -70,6 +70,11 @@ export interface MetaInsight {
   action_values?: MetaAction[];
   cost_per_action_type?: MetaAction[];
   purchase_roas?: MetaAction[];
+  // breakdown 조회 시에만 채워지는 필드 (age+gender / publisher_platform / placement)
+  age?: string;
+  gender?: string;
+  publisher_platform?: string;
+  platform_position?: string;
 }
 
 export interface MetaInsightsResponse {
