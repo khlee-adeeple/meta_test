@@ -76,3 +76,46 @@ export interface MetaInsightsResponse {
   data: MetaInsight[];
   paging?: MetaPaging;
 }
+
+export interface MetaCampaign {
+  id?: string;
+  name?: string;
+  status?: string;
+  effective_status?: string;
+  objective?: string;
+  created_time?: string;
+  updated_time?: string;
+}
+
+export interface MetaAdset {
+  id?: string;
+  name?: string;
+  campaign_id?: string;
+  status?: string;
+  effective_status?: string;
+  daily_budget?: string;
+  lifetime_budget?: string;
+  optimization_goal?: string;
+  billing_event?: string;
+  start_time?: string;
+  end_time?: string;
+  created_time?: string;
+  updated_time?: string;
+}
+
+export interface MetaAd {
+  id?: string;
+  name?: string;
+  campaign_id?: string;
+  adset_id?: string;
+  status?: string;
+  effective_status?: string;
+  created_time?: string;
+  updated_time?: string;
+}
+
+// campaigns/adsets/ads 목록 API 공용 응답 형태.
+export interface MetaListResponse<T> {
+  data: T[];
+  paging?: MetaPaging;
+}

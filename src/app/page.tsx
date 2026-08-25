@@ -2,11 +2,18 @@
 
 import { useState } from "react";
 import { MetaAccountCard } from "@/components/meta/MetaAccountCard";
+import { CampaignTable } from "@/components/meta/CampaignTable";
+import { AdsetTable } from "@/components/meta/AdsetTable";
+import { AdTable } from "@/components/meta/AdTable";
 import { InsightTable } from "@/components/meta/InsightTable";
 import type {
+  MetaAd,
   MetaAdAccount,
+  MetaAdset,
   MetaApiError,
+  MetaCampaign,
   MetaInsightsResponse,
+  MetaListResponse,
 } from "@/types/meta";
 
 type LoadStatus = "idle" | "loading" | "success" | "error";
@@ -61,6 +68,26 @@ export default function Home() {
   const [accountError, setAccountError] = useState<MetaApiError | null>(null);
   const [accountRawJson, setAccountRawJson] = useState<unknown>(null);
 
+  // 캠페인 조회 상태
+  const [campaignStatus, setCampaignStatus] = useState<LoadStatus>("idle");
+  const [campaignRows, setCampaignRows] = useState<MetaCampaign[]>([]);
+  const [campaignError, setCampaignError] = useState<MetaApiError | null>(
+    null
+  );
+  const [campaignRawJson, setCampaignRawJson] = useState<unknown>(null);
+
+  // 광고세트 조회 상태
+  const [adsetStatus, setAdsetStatus] = useState<LoadStatus>("idle");
+  const [adsetRows, setAdsetRows] = useState<MetaAdset[]>([]);
+  const [adsetError, setAdsetError] = useState<MetaApiError | null>(null);
+  const [adsetRawJson, setAdsetRawJson] = useState<unknown>(null);
+
+  // 광고 조회 상태
+  const [adStatus, setAdStatus] = useState<LoadStatus>("idle");
+  const [adRows, setAdRows] = useState<MetaAd[]>([]);
+  const [adError, setAdError] = useState<MetaApiError | null>(null);
+  const [adRawJson, setAdRawJson] = useState<unknown>(null);
+
   // Insights 조회 상태
   const [insightsStatus, setInsightsStatus] = useState<LoadStatus>("idle");
   const [insightRows, setInsightRows] = useState<MetaInsightsResponse["data"]>(
@@ -95,6 +122,84 @@ export default function Home() {
       setAccountRawJson(null);
       setAccountError({ message: "네트워크 오류로 요청에 실패했습니다." });
       setAccountStatus("error");
+    }
+  }
+
+  async function handleFetchCampaigns() {
+    setCampaignStatus("loading");
+    setCampaignError(null);
+
+    try {
+      const res = await fetch("/api/meta/campaigns");
+      const body = await res.json();
+      setCampaignRawJson(body);
+
+      if (body.success) {
+        const data = (body.data as MetaListResponse<MetaCampaign>).data ?? [];
+        setCampaignRows(data);
+        setCampaignStatus("success");
+      } else {
+        setCampaignRows([]);
+        setCampaignError(body.error as MetaApiError);
+        setCampaignStatus("error");
+      }
+    } catch {
+      setCampaignRows([]);
+      setCampaignRawJson(null);
+      setCampaignError({ message: "네트워크 오류로 요청에 실패했습니다." });
+      setCampaignStatus("error");
+    }
+  }
+
+  async function handleFetchAdsets() {
+    setAdsetStatus("loading");
+    setAdsetError(null);
+
+    try {
+      const res = await fetch("/api/meta/adsets");
+      const body = await res.json();
+      setAdsetRawJson(body);
+
+      if (body.success) {
+        const data = (body.data as MetaListResponse<MetaAdset>).data ?? [];
+        setAdsetRows(data);
+        setAdsetStatus("success");
+      } else {
+        setAdsetRows([]);
+        setAdsetError(body.error as MetaApiError);
+        setAdsetStatus("error");
+      }
+    } catch {
+      setAdsetRows([]);
+      setAdsetRawJson(null);
+      setAdsetError({ message: "네트워크 오류로 요청에 실패했습니다." });
+      setAdsetStatus("error");
+    }
+  }
+
+  async function handleFetchAds() {
+    setAdStatus("loading");
+    setAdError(null);
+
+    try {
+      const res = await fetch("/api/meta/ads");
+      const body = await res.json();
+      setAdRawJson(body);
+
+      if (body.success) {
+        const data = (body.data as MetaListResponse<MetaAd>).data ?? [];
+        setAdRows(data);
+        setAdStatus("success");
+      } else {
+        setAdRows([]);
+        setAdError(body.error as MetaApiError);
+        setAdStatus("error");
+      }
+    } catch {
+      setAdRows([]);
+      setAdRawJson(null);
+      setAdError({ message: "네트워크 오류로 요청에 실패했습니다." });
+      setAdStatus("error");
     }
   }
 
@@ -157,16 +262,88 @@ export default function Home() {
               Meta 데이터를 불러오는 중입니다...
             </p>
           )}
-
           {accountStatus === "error" && accountError && (
             <ErrorBox error={accountError} />
           )}
-
           {accountStatus === "success" && account && (
             <MetaAccountCard account={account} />
           )}
-
           <RawJsonToggle data={accountRawJson} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">캠페인 목록</h2>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleFetchCampaigns}
+              disabled={campaignStatus === "loading"}
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              캠페인 조회
+            </button>
+          </div>
+
+          {campaignStatus === "loading" && (
+            <p className="text-sm text-gray-500">
+              Meta 데이터를 불러오는 중입니다...
+            </p>
+          )}
+          {campaignStatus === "error" && campaignError && (
+            <ErrorBox error={campaignError} />
+          )}
+          {campaignStatus === "success" && (
+            <CampaignTable rows={campaignRows} />
+          )}
+          <RawJsonToggle data={campaignRawJson} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">광고세트 목록</h2>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleFetchAdsets}
+              disabled={adsetStatus === "loading"}
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              광고세트 조회
+            </button>
+          </div>
+
+          {adsetStatus === "loading" && (
+            <p className="text-sm text-gray-500">
+              Meta 데이터를 불러오는 중입니다...
+            </p>
+          )}
+          {adsetStatus === "error" && adsetError && (
+            <ErrorBox error={adsetError} />
+          )}
+          {adsetStatus === "success" && <AdsetTable rows={adsetRows} />}
+          <RawJsonToggle data={adsetRawJson} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">광고 목록</h2>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleFetchAds}
+              disabled={adStatus === "loading"}
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              광고 조회
+            </button>
+          </div>
+
+          {adStatus === "loading" && (
+            <p className="text-sm text-gray-500">
+              Meta 데이터를 불러오는 중입니다...
+            </p>
+          )}
+          {adStatus === "error" && adError && <ErrorBox error={adError} />}
+          {adStatus === "success" && <AdTable rows={adRows} />}
+          <RawJsonToggle data={adRawJson} />
         </section>
 
         <section className="flex flex-col gap-3">
@@ -207,15 +384,12 @@ export default function Home() {
               Meta 데이터를 불러오는 중입니다...
             </p>
           )}
-
           {insightsStatus === "error" && insightsError && (
             <ErrorBox error={insightsError} />
           )}
-
           {insightsStatus === "success" && (
             <InsightTable rows={insightRows} />
           )}
-
           <RawJsonToggle data={insightsRawJson} />
         </section>
       </div>
