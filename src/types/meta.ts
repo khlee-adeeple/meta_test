@@ -27,3 +27,52 @@ export interface MetaApiError {
 export type MetaApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: MetaApiError };
+
+/**
+ * actions / action_values / cost_per_action_type / purchase_roas가
+ * 공통으로 사용하는 형태. action_type이 동적이라 union으로 제한하지 않는다.
+ */
+export interface MetaAction {
+  action_type: string;
+  value?: string;
+}
+
+export interface MetaPaging {
+  cursors?: {
+    before?: string;
+    after?: string;
+  };
+  next?: string;
+  previous?: string;
+}
+
+export interface MetaInsight {
+  account_id?: string;
+  account_name?: string;
+  campaign_id?: string;
+  campaign_name?: string;
+  adset_id?: string;
+  adset_name?: string;
+  ad_id?: string;
+  ad_name?: string;
+  date_start?: string;
+  date_stop?: string;
+  spend?: string;
+  impressions?: string;
+  reach?: string;
+  clicks?: string;
+  inline_link_clicks?: string;
+  ctr?: string;
+  cpc?: string;
+  cpm?: string;
+  frequency?: string;
+  actions?: MetaAction[];
+  action_values?: MetaAction[];
+  cost_per_action_type?: MetaAction[];
+  purchase_roas?: MetaAction[];
+}
+
+export interface MetaInsightsResponse {
+  data: MetaInsight[];
+  paging?: MetaPaging;
+}
