@@ -42,6 +42,9 @@ export interface MetaPaging {
     before?: string;
     after?: string;
   };
+  // Meta 원본 응답에는 access_token이 포함된 전체 URL로 내려오지만,
+  // fetchMeta가 서버에서 항상 제거하므로 우리 API 응답에는 절대 채워지지 않는다.
+  // (타입은 Meta 원본 스키마 문서화 목적으로만 유지)
   next?: string;
   previous?: string;
 }

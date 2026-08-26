@@ -38,6 +38,26 @@ function redactUrlForLogging(url: string): string {
   return redacted.toString();
 }
 
+// Meta는 목록 응답의 paging.next/paging.previous에 access_token이 포함된
+// 전체 URL을 그대로 돌려준다. 이 값을 그대로 클라이언트에 넘기면 토큰이
+// 노출되므로, cursors(after/before)만 남기고 next/previous는 항상 제거한다.
+// 다음 페이지 요청은 이 cursor를 우리 서버가 다시 access_token과 함께
+// 조립해서 보낸다 (buildUrl 참고).
+function stripPagingUrls(body: unknown): unknown {
+  if (
+    body &&
+    typeof body === "object" &&
+    "paging" in body &&
+    body.paging &&
+    typeof body.paging === "object"
+  ) {
+    const paging = body.paging as { next?: unknown; previous?: unknown };
+    delete paging.next;
+    delete paging.previous;
+  }
+  return body;
+}
+
 /**
  * Meta Graph API 호출 공통 함수.
  *
@@ -106,5 +126,7 @@ export async function fetchMeta<T>(
     console.log(`[META API] rows: ${rows}`);
   }
 
-  return { success: true, data: body as T };
+  const safeBody = stripPagingUrls(body);
+
+  return { success: true, data: safeBody as T };
 }
