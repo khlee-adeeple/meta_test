@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getMetaAdAccountId } from "@/lib/meta/config";
 import { fetchMeta } from "@/lib/meta/fetchMeta";
 import type { MetaAdset, MetaListResponse } from "@/types/meta";
@@ -19,9 +19,10 @@ const ADSET_FIELDS = [
   "updated_time",
 ].join(",");
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const accountId = getMetaAdAccountId();
+    const after = new URL(request.url).searchParams.get("after") ?? undefined;
 
     // 필드 중 일부가 계정/버전에서 지원되지 않으면 fetchMeta가 Meta 에러 응답을
     // 그대로 서버 콘솔에 남긴다 (message/type/code/error_subcode/fbtrace_id).
@@ -30,6 +31,7 @@ export async function GET() {
       {
         fields: ADSET_FIELDS,
         limit: 100,
+        after,
       }
     );
 

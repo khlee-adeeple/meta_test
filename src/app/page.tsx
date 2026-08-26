@@ -6,14 +6,14 @@ import { CampaignTable } from "@/components/meta/CampaignTable";
 import { AdsetTable } from "@/components/meta/AdsetTable";
 import { AdTable } from "@/components/meta/AdTable";
 import { InsightTable } from "@/components/meta/InsightTable";
+import { useMetaList } from "@/hooks/useMetaList";
 import type {
   MetaAd,
   MetaAdAccount,
   MetaAdset,
   MetaApiError,
   MetaCampaign,
-  MetaInsightsResponse,
-  MetaListResponse,
+  MetaInsight,
 } from "@/types/meta";
 
 type LoadStatus = "idle" | "loading" | "success" | "error";
@@ -68,42 +68,48 @@ function RawJsonToggle({ data }: { data: unknown }) {
   );
 }
 
+function PaginationControls({
+  page,
+  hasNextPage,
+  onNextPage,
+}: {
+  page: number;
+  hasNextPage: boolean;
+  onNextPage: () => void;
+}) {
+  // 이 컴포넌트는 항상 status === "success"일 때만 렌더링되므로
+  // (다음 페이지 로딩 중엔 status가 "loading"으로 바뀌며 함께 사라진다)
+  // 별도의 loading 플래그를 받지 않는다.
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm text-gray-500">페이지 {page}</span>
+      <button
+        type="button"
+        onClick={onNextPage}
+        disabled={!hasNextPage}
+        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        다음 페이지
+      </button>
+      {!hasNextPage && page > 1 && (
+        <span className="text-xs text-gray-400">마지막 페이지입니다</span>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
-  // 광고계정 조회 상태
+  // 광고계정 조회 상태 (단일 객체라 useMetaList 대상 아님)
   const [accountStatus, setAccountStatus] = useState<LoadStatus>("idle");
   const [account, setAccount] = useState<MetaAdAccount | null>(null);
   const [accountError, setAccountError] = useState<MetaApiError | null>(null);
   const [accountRawJson, setAccountRawJson] = useState<unknown>(null);
 
-  // 캠페인 조회 상태
-  const [campaignStatus, setCampaignStatus] = useState<LoadStatus>("idle");
-  const [campaignRows, setCampaignRows] = useState<MetaCampaign[]>([]);
-  const [campaignError, setCampaignError] = useState<MetaApiError | null>(
-    null
-  );
-  const [campaignRawJson, setCampaignRawJson] = useState<unknown>(null);
+  const campaigns = useMetaList<MetaCampaign>();
+  const adsets = useMetaList<MetaAdset>();
+  const ads = useMetaList<MetaAd>();
+  const insights = useMetaList<MetaInsight>();
 
-  // 광고세트 조회 상태
-  const [adsetStatus, setAdsetStatus] = useState<LoadStatus>("idle");
-  const [adsetRows, setAdsetRows] = useState<MetaAdset[]>([]);
-  const [adsetError, setAdsetError] = useState<MetaApiError | null>(null);
-  const [adsetRawJson, setAdsetRawJson] = useState<unknown>(null);
-
-  // 광고 조회 상태
-  const [adStatus, setAdStatus] = useState<LoadStatus>("idle");
-  const [adRows, setAdRows] = useState<MetaAd[]>([]);
-  const [adError, setAdError] = useState<MetaApiError | null>(null);
-  const [adRawJson, setAdRawJson] = useState<unknown>(null);
-
-  // Insights 조회 상태
-  const [insightsStatus, setInsightsStatus] = useState<LoadStatus>("idle");
-  const [insightRows, setInsightRows] = useState<MetaInsightsResponse["data"]>(
-    []
-  );
-  const [insightsError, setInsightsError] = useState<MetaApiError | null>(
-    null
-  );
-  const [insightsRawJson, setInsightsRawJson] = useState<unknown>(null);
   const [datePreset, setDatePreset] =
     useState<(typeof DATE_PRESETS)[number]["value"]>("last_7d");
   const [breakdown, setBreakdown] =
@@ -134,112 +140,10 @@ export default function Home() {
     }
   }
 
-  async function handleFetchCampaigns() {
-    setCampaignStatus("loading");
-    setCampaignError(null);
-
-    try {
-      const res = await fetch("/api/meta/campaigns");
-      const body = await res.json();
-      setCampaignRawJson(body);
-
-      if (body.success) {
-        const data = (body.data as MetaListResponse<MetaCampaign>).data ?? [];
-        setCampaignRows(data);
-        setCampaignStatus("success");
-      } else {
-        setCampaignRows([]);
-        setCampaignError(body.error as MetaApiError);
-        setCampaignStatus("error");
-      }
-    } catch {
-      setCampaignRows([]);
-      setCampaignRawJson(null);
-      setCampaignError({ message: "네트워크 오류로 요청에 실패했습니다." });
-      setCampaignStatus("error");
-    }
-  }
-
-  async function handleFetchAdsets() {
-    setAdsetStatus("loading");
-    setAdsetError(null);
-
-    try {
-      const res = await fetch("/api/meta/adsets");
-      const body = await res.json();
-      setAdsetRawJson(body);
-
-      if (body.success) {
-        const data = (body.data as MetaListResponse<MetaAdset>).data ?? [];
-        setAdsetRows(data);
-        setAdsetStatus("success");
-      } else {
-        setAdsetRows([]);
-        setAdsetError(body.error as MetaApiError);
-        setAdsetStatus("error");
-      }
-    } catch {
-      setAdsetRows([]);
-      setAdsetRawJson(null);
-      setAdsetError({ message: "네트워크 오류로 요청에 실패했습니다." });
-      setAdsetStatus("error");
-    }
-  }
-
-  async function handleFetchAds() {
-    setAdStatus("loading");
-    setAdError(null);
-
-    try {
-      const res = await fetch("/api/meta/ads");
-      const body = await res.json();
-      setAdRawJson(body);
-
-      if (body.success) {
-        const data = (body.data as MetaListResponse<MetaAd>).data ?? [];
-        setAdRows(data);
-        setAdStatus("success");
-      } else {
-        setAdRows([]);
-        setAdError(body.error as MetaApiError);
-        setAdStatus("error");
-      }
-    } catch {
-      setAdRows([]);
-      setAdRawJson(null);
-      setAdError({ message: "네트워크 오류로 요청에 실패했습니다." });
-      setAdStatus("error");
-    }
-  }
-
-  async function handleFetchInsights() {
-    setInsightsStatus("loading");
-    setInsightsError(null);
-
-    try {
-      const res = await fetch(
-        `/api/meta/insights?datePreset=${encodeURIComponent(
-          datePreset
-        )}&breakdown=${encodeURIComponent(breakdown)}`
-      );
-      const body = await res.json();
-      setInsightsRawJson(body);
-
-      if (body.success) {
-        const data = (body.data as MetaInsightsResponse).data ?? [];
-        setInsightRows(data);
-        setInsightsStatus("success");
-      } else {
-        setInsightRows([]);
-        setInsightsError(body.error as MetaApiError);
-        setInsightsStatus("error");
-      }
-    } catch {
-      setInsightRows([]);
-      setInsightsRawJson(null);
-      setInsightsError({ message: "네트워크 오류로 요청에 실패했습니다." });
-      setInsightsStatus("error");
-    }
+  function insightsUrl() {
+    return `/api/meta/insights?datePreset=${encodeURIComponent(
+      datePreset
+    )}&breakdown=${encodeURIComponent(breakdown)}`;
   }
 
   return (
@@ -284,77 +188,102 @@ export default function Home() {
 
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold text-gray-900">캠페인 목록</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={handleFetchCampaigns}
-              disabled={campaignStatus === "loading"}
+              onClick={() => campaigns.fetchFirstPage("/api/meta/campaigns")}
+              disabled={campaigns.status === "loading"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
               캠페인 조회
             </button>
+            {campaigns.status === "success" && (
+              <PaginationControls
+                page={campaigns.page}
+                hasNextPage={campaigns.hasNextPage}
+                onNextPage={() =>
+                  campaigns.fetchNextPage("/api/meta/campaigns")
+                }
+              />
+            )}
           </div>
 
-          {campaignStatus === "loading" && (
+          {campaigns.status === "loading" && (
             <p className="text-sm text-gray-500">
               Meta 데이터를 불러오는 중입니다...
             </p>
           )}
-          {campaignStatus === "error" && campaignError && (
-            <ErrorBox error={campaignError} />
+          {campaigns.status === "error" && campaigns.error && (
+            <ErrorBox error={campaigns.error} />
           )}
-          {campaignStatus === "success" && (
-            <CampaignTable rows={campaignRows} />
+          {campaigns.status === "success" && (
+            <CampaignTable rows={campaigns.rows} />
           )}
-          <RawJsonToggle data={campaignRawJson} />
+          <RawJsonToggle data={campaigns.rawJson} />
         </section>
 
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold text-gray-900">광고세트 목록</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={handleFetchAdsets}
-              disabled={adsetStatus === "loading"}
+              onClick={() => adsets.fetchFirstPage("/api/meta/adsets")}
+              disabled={adsets.status === "loading"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
               광고세트 조회
             </button>
+            {adsets.status === "success" && (
+              <PaginationControls
+                page={adsets.page}
+                hasNextPage={adsets.hasNextPage}
+                onNextPage={() => adsets.fetchNextPage("/api/meta/adsets")}
+              />
+            )}
           </div>
 
-          {adsetStatus === "loading" && (
+          {adsets.status === "loading" && (
             <p className="text-sm text-gray-500">
               Meta 데이터를 불러오는 중입니다...
             </p>
           )}
-          {adsetStatus === "error" && adsetError && (
-            <ErrorBox error={adsetError} />
+          {adsets.status === "error" && adsets.error && (
+            <ErrorBox error={adsets.error} />
           )}
-          {adsetStatus === "success" && <AdsetTable rows={adsetRows} />}
-          <RawJsonToggle data={adsetRawJson} />
+          {adsets.status === "success" && <AdsetTable rows={adsets.rows} />}
+          <RawJsonToggle data={adsets.rawJson} />
         </section>
 
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold text-gray-900">광고 목록</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={handleFetchAds}
-              disabled={adStatus === "loading"}
+              onClick={() => ads.fetchFirstPage("/api/meta/ads")}
+              disabled={ads.status === "loading"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
               광고 조회
             </button>
+            {ads.status === "success" && (
+              <PaginationControls
+                page={ads.page}
+                hasNextPage={ads.hasNextPage}
+                onNextPage={() => ads.fetchNextPage("/api/meta/ads")}
+              />
+            )}
           </div>
 
-          {adStatus === "loading" && (
+          {ads.status === "loading" && (
             <p className="text-sm text-gray-500">
               Meta 데이터를 불러오는 중입니다...
             </p>
           )}
-          {adStatus === "error" && adError && <ErrorBox error={adError} />}
-          {adStatus === "success" && <AdTable rows={adRows} />}
-          <RawJsonToggle data={adRawJson} />
+          {ads.status === "error" && ads.error && (
+            <ErrorBox error={ads.error} />
+          )}
+          {ads.status === "success" && <AdTable rows={ads.rows} />}
+          <RawJsonToggle data={ads.rawJson} />
         </section>
 
         <section className="flex flex-col gap-3">
@@ -368,7 +297,10 @@ export default function Home() {
                 <button
                   key={preset.value}
                   type="button"
-                  onClick={() => setDatePreset(preset.value)}
+                  onClick={() => {
+                    setDatePreset(preset.value);
+                    insights.reset();
+                  }}
                   className={`rounded-md border px-3 py-1.5 text-sm ${
                     datePreset === preset.value
                       ? "border-gray-900 bg-gray-900 text-white"
@@ -388,7 +320,10 @@ export default function Home() {
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => setBreakdown(option.value)}
+                  onClick={() => {
+                    setBreakdown(option.value);
+                    insights.reset();
+                  }}
                   className={`rounded-md border px-3 py-1.5 text-sm ${
                     breakdown === option.value
                       ? "border-gray-900 bg-gray-900 text-white"
@@ -399,29 +334,38 @@ export default function Home() {
                 </button>
               ))}
             </div>
+          </div>
 
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={handleFetchInsights}
-              disabled={insightsStatus === "loading"}
+              onClick={() => insights.fetchFirstPage(insightsUrl())}
+              disabled={insights.status === "loading"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
               Insights 조회
             </button>
+            {insights.status === "success" && (
+              <PaginationControls
+                page={insights.page}
+                hasNextPage={insights.hasNextPage}
+                onNextPage={() => insights.fetchNextPage(insightsUrl())}
+              />
+            )}
           </div>
 
-          {insightsStatus === "loading" && (
+          {insights.status === "loading" && (
             <p className="text-sm text-gray-500">
               Meta 데이터를 불러오는 중입니다...
             </p>
           )}
-          {insightsStatus === "error" && insightsError && (
-            <ErrorBox error={insightsError} />
+          {insights.status === "error" && insights.error && (
+            <ErrorBox error={insights.error} />
           )}
-          {insightsStatus === "success" && (
-            <InsightTable rows={insightRows} />
+          {insights.status === "success" && (
+            <InsightTable rows={insights.rows} />
           )}
-          <RawJsonToggle data={insightsRawJson} />
+          <RawJsonToggle data={insights.rawJson} />
         </section>
       </div>
     </div>

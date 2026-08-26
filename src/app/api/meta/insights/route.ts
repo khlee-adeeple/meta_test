@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const datePreset = resolveDatePreset(searchParams.get("datePreset"));
     const breakdown = resolveBreakdown(searchParams.get("breakdown"));
+    const after = searchParams.get("after") ?? undefined;
 
     const result = await fetchMeta<MetaInsightsResponse>(
       `/${accountId}/insights`,
@@ -115,6 +116,7 @@ export async function GET(request: NextRequest) {
         fields:
           breakdown === "none" ? INSIGHT_FIELDS : BREAKDOWN_INSIGHT_FIELDS,
         breakdowns: breakdown === "none" ? undefined : BREAKDOWN_MAP[breakdown],
+        after,
       }
     );
 
