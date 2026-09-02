@@ -25,13 +25,11 @@ const COLUMNS = [
 
 export function AdsetTable({ rows }: { rows: MetaAdset[] }) {
   if (rows.length === 0) {
-    return (
-      <p className="text-sm text-gray-500">조회된 광고세트가 없습니다.</p>
-    );
+    return <p className="text-sm text-gray-500">조회된 광고세트가 없습니다.</p>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-gray-200">
+    <div className="overflow-auto rounded-md border border-gray-200 h-100">
       <table className="min-w-full divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50">
           <tr>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMetaAdAccountId } from "@/lib/meta/config";
+import { resolveRequestedAccountId } from "@/lib/meta/config";
 import { fetchMeta } from "@/lib/meta/fetchMeta";
 import type { MetaInsightsResponse } from "@/types/meta";
 
@@ -101,8 +101,8 @@ function resolveDatePreset(rawValue: string | null): DatePreset {
 
 export async function GET(request: NextRequest) {
   try {
-    const accountId = getMetaAdAccountId();
     const { searchParams } = new URL(request.url);
+    const accountId = resolveRequestedAccountId(searchParams.get("accountId"));
     const datePreset = resolveDatePreset(searchParams.get("datePreset"));
     const breakdown = resolveBreakdown(searchParams.get("breakdown"));
     const after = searchParams.get("after") ?? undefined;

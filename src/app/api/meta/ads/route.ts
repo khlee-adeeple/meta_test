@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMetaAdAccountId } from "@/lib/meta/config";
+import { resolveRequestedAccountId } from "@/lib/meta/config";
 import { fetchMeta } from "@/lib/meta/fetchMeta";
 import type { MetaAd, MetaListResponse } from "@/types/meta";
 
@@ -17,8 +17,9 @@ const AD_FIELDS = [
 
 export async function GET(request: NextRequest) {
   try {
-    const accountId = getMetaAdAccountId();
-    const after = new URL(request.url).searchParams.get("after") ?? undefined;
+    const { searchParams } = new URL(request.url);
+    const accountId = resolveRequestedAccountId(searchParams.get("accountId"));
+    const after = searchParams.get("after") ?? undefined;
 
     const result = await fetchMeta<MetaListResponse<MetaAd>>(
       `/${accountId}/ads`,

@@ -32,6 +32,16 @@ const BREAKDOWN_OPTIONS = [
   { value: "placement", label: "노출 위치(Placement)" },
 ] as const;
 
+// META_AD_ACCOUNT_IDS에 설정된 계정들과 짝이 맞아야 한다 (서버가 whitelist로
+// 검증하므로, 여기서 다른 값을 골라도 서버가 첫 번째 계정으로 대체한다).
+// label은 이전에 /me/adaccounts로 확인한 Meta 원본 계정명을 그대로 옮긴 것이다.
+const ACCOUNT_OPTIONS = [
+  { id: "act_1993422144326874", label: "ADEEPLE 광고 계정" },
+  { id: "act_1422863985334992", label: "ADEEPLE 인하우스 A (오디션 키즈)" },
+  { id: "act_989368012810277", label: "ADEEPLE 인하우스 B (부동산 전용)" },
+  { id: "act_739469150969222", label: "ADEEPLE 인하우스 D (오디션 키즈)" },
+] as const;
+
 function ErrorBox({ error }: { error: MetaApiError }) {
   return (
     <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -99,6 +109,10 @@ function PaginationControls({
 }
 
 export default function Home() {
+  const [selectedAccountId, setSelectedAccountId] = useState<
+    (typeof ACCOUNT_OPTIONS)[number]["id"]
+  >(ACCOUNT_OPTIONS[0].id);
+
   // 광고계정 조회 상태 (단일 객체라 useMetaList 대상 아님)
   const [accountStatus, setAccountStatus] = useState<LoadStatus>("idle");
   const [account, setAccount] = useState<MetaAdAccount | null>(null);
@@ -115,12 +129,27 @@ export default function Home() {
   const [breakdown, setBreakdown] =
     useState<(typeof BREAKDOWN_OPTIONS)[number]["value"]>("none");
 
+  // 계정을 바꾸면 이전 계정 데이터가 섞여 보이지 않도록 모든 섹션을 초기화한다.
+  function handleSelectAccount(accountId: (typeof ACCOUNT_OPTIONS)[number]["id"]) {
+    setSelectedAccountId(accountId);
+    setAccountStatus("idle");
+    setAccount(null);
+    setAccountError(null);
+    setAccountRawJson(null);
+    campaigns.reset();
+    adsets.reset();
+    ads.reset();
+    insights.reset();
+  }
+
   async function handleFetchAccount() {
     setAccountStatus("loading");
     setAccountError(null);
 
     try {
-      const res = await fetch("/api/meta/account");
+      const res = await fetch(
+        `/api/meta/account?accountId=${encodeURIComponent(selectedAccountId)}`
+      );
       const body = await res.json();
       setAccountRawJson(body);
 
@@ -140,8 +169,22 @@ export default function Home() {
     }
   }
 
+  function campaignsUrl() {
+    return `/api/meta/campaigns?accountId=${encodeURIComponent(selectedAccountId)}`;
+  }
+
+  function adsetsUrl() {
+    return `/api/meta/adsets?accountId=${encodeURIComponent(selectedAccountId)}`;
+  }
+
+  function adsUrl() {
+    return `/api/meta/ads?accountId=${encodeURIComponent(selectedAccountId)}`;
+  }
+
   function insightsUrl() {
-    return `/api/meta/insights?datePreset=${encodeURIComponent(
+    return `/api/meta/insights?accountId=${encodeURIComponent(
+      selectedAccountId
+    )}&datePreset=${encodeURIComponent(
       datePreset
     )}&breakdown=${encodeURIComponent(breakdown)}`;
   }
@@ -158,6 +201,29 @@ export default function Home() {
             화면입니다. (조회 전용 — 광고 상태를 변경하는 기능은 없습니다)
           </p>
         </header>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">광고계정 선택</h2>
+          <div className="flex flex-wrap gap-1">
+            {ACCOUNT_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => handleSelectAccount(option.id)}
+                className={`rounded-md border px-3 py-1.5 text-sm ${
+                  selectedAccountId === option.id
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400">
+            선택한 계정: {selectedAccountId}
+          </p>
+        </section>
 
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold text-gray-900">광고계정 정보</h2>
@@ -191,7 +257,7 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => campaigns.fetchFirstPage("/api/meta/campaigns")}
+              onClick={() => campaigns.fetchFirstPage(campaignsUrl())}
               disabled={campaigns.status === "loading"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
@@ -202,7 +268,7 @@ export default function Home() {
                 page={campaigns.page}
                 hasNextPage={campaigns.hasNextPage}
                 onNextPage={() =>
-                  campaigns.fetchNextPage("/api/meta/campaigns")
+                  campaigns.fetchNextPage(campaignsUrl())
                 }
               />
             )}
@@ -227,7 +293,7 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => adsets.fetchFirstPage("/api/meta/adsets")}
+              onClick={() => adsets.fetchFirstPage(adsetsUrl())}
               disabled={adsets.status === "loading"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
@@ -237,7 +303,7 @@ export default function Home() {
               <PaginationControls
                 page={adsets.page}
                 hasNextPage={adsets.hasNextPage}
-                onNextPage={() => adsets.fetchNextPage("/api/meta/adsets")}
+                onNextPage={() => adsets.fetchNextPage(adsetsUrl())}
               />
             )}
           </div>
@@ -259,7 +325,7 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => ads.fetchFirstPage("/api/meta/ads")}
+              onClick={() => ads.fetchFirstPage(adsUrl())}
               disabled={ads.status === "loading"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
@@ -269,7 +335,7 @@ export default function Home() {
               <PaginationControls
                 page={ads.page}
                 hasNextPage={ads.hasNextPage}
-                onNextPage={() => ads.fetchNextPage("/api/meta/ads")}
+                onNextPage={() => ads.fetchNextPage(adsUrl())}
               />
             )}
           </div>

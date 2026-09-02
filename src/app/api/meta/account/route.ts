@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { getMetaAdAccountId } from "@/lib/meta/config";
+import { NextRequest, NextResponse } from "next/server";
+import { resolveRequestedAccountId } from "@/lib/meta/config";
 import { fetchMeta } from "@/lib/meta/fetchMeta";
 import type { MetaAdAccount } from "@/types/meta";
 
@@ -13,9 +13,10 @@ const ACCOUNT_FIELDS = [
   "timezone_offset_hours_utc",
 ].join(",");
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const accountId = getMetaAdAccountId();
+    const { searchParams } = new URL(request.url);
+    const accountId = resolveRequestedAccountId(searchParams.get("accountId"));
 
     const result = await fetchMeta<MetaAdAccount>(`/${accountId}`, {
       fields: ACCOUNT_FIELDS,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMetaAdAccountId } from "@/lib/meta/config";
+import { resolveRequestedAccountId } from "@/lib/meta/config";
 import { fetchMeta } from "@/lib/meta/fetchMeta";
 import type { MetaCampaign, MetaListResponse } from "@/types/meta";
 
@@ -15,11 +15,12 @@ const CAMPAIGN_FIELDS = [
 
 export async function GET(request: NextRequest) {
   try {
-    const accountId = getMetaAdAccountId();
+    const { searchParams } = new URL(request.url);
+    const accountId = resolveRequestedAccountId(searchParams.get("accountId"));
     // 이전 페이지 응답의 paging.cursors.after를 그대로 넘겨받아 다음 페이지를
     // 조회한다. 우리가 발급한 cursor가 아니라 Meta가 발급한 cursor이므로
     // whitelist 검증 없이 그대로 전달해도 안전하다 (URLSearchParams가 인코딩).
-    const after = new URL(request.url).searchParams.get("after") ?? undefined;
+    const after = searchParams.get("after") ?? undefined;
 
     const result = await fetchMeta<MetaListResponse<MetaCampaign>>(
       `/${accountId}/campaigns`,
