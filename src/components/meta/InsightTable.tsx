@@ -49,12 +49,20 @@ export function InsightTable({ rows }: { rows: MetaInsight[] }) {
     rows.some((row) => row[dim.key] !== undefined),
   );
 
+  // 계정별 조회(항상 계정 1개)에서는 굳이 보여줄 필요 없고, 전체 계정 통합
+  // 조회처럼 서로 다른 계정의 행이 섞여 있을 때만 "Account" 컬럼을 보여준다.
+  const distinctAccounts = new Set(
+    rows.map((row) => row.account_id ?? row.account_name ?? "")
+  );
+  const showAccountColumn = distinctAccounts.size > 1;
+
   return (
     <div className="overflow-auto rounded-md border border-gray-200 h-200">
       <table className="min-w-full divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50">
           <tr>
             {[
+              ...(showAccountColumn ? ["Account"] : []),
               ...BASE_COLUMNS,
               ...activeDimensions.map((d) => d.label),
               ...METRIC_COLUMNS,
@@ -70,7 +78,12 @@ export function InsightTable({ rows }: { rows: MetaInsight[] }) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {rows.map((row, i) => (
-            <tr key={`${row.ad_id ?? "row"}-${row.date_start ?? i}-${i}`}>
+            <tr key={`${row.account_id ?? "acc"}-${row.ad_id ?? "row"}-${row.date_start ?? i}-${i}`}>
+              {showAccountColumn && (
+                <td className="whitespace-nowrap px-3 py-2">
+                  {displayValue(row.account_name ?? row.account_id)}
+                </td>
+              )}
               <td className="whitespace-nowrap px-3 py-2">
                 {displayValue(row.date_start)}
               </td>

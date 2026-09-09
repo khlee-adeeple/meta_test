@@ -55,6 +55,26 @@ function ErrorBox({ error }: { error: MetaApiError }) {
   );
 }
 
+// insights/all 응답에만 있는 계정별 부분 실패 목록을 안전하게 꺼낸다.
+function getAccountErrors(
+  rawJson: unknown
+): { accountId: string; message: string }[] {
+  if (
+    rawJson &&
+    typeof rawJson === "object" &&
+    "data" in rawJson &&
+    rawJson.data &&
+    typeof rawJson.data === "object" &&
+    "accountErrors" in rawJson.data &&
+    Array.isArray((rawJson.data as { accountErrors: unknown }).accountErrors)
+  ) {
+    return (rawJson.data as {
+      accountErrors: { accountId: string; message: string }[];
+    }).accountErrors;
+  }
+  return [];
+}
+
 function RawJsonToggle({ data }: { data: unknown }) {
   const [show, setShow] = useState(false);
 
@@ -129,6 +149,13 @@ export default function Home() {
   const [breakdown, setBreakdown] =
     useState<(typeof BREAKDOWN_OPTIONS)[number]["value"]>("none");
 
+  // 전체 계정 통합 Insights (계정별 조회와 별개의 상태/필터)
+  const allInsights = useMetaList<MetaInsight>();
+  const [allDatePreset, setAllDatePreset] =
+    useState<(typeof DATE_PRESETS)[number]["value"]>("last_7d");
+  const [allBreakdown, setAllBreakdown] =
+    useState<(typeof BREAKDOWN_OPTIONS)[number]["value"]>("none");
+
   // 계정을 바꾸면 이전 계정 데이터가 섞여 보이지 않도록 모든 섹션을 초기화한다.
   function handleSelectAccount(accountId: (typeof ACCOUNT_OPTIONS)[number]["id"]) {
     setSelectedAccountId(accountId);
@@ -187,6 +214,14 @@ export default function Home() {
     )}&datePreset=${encodeURIComponent(
       datePreset
     )}&breakdown=${encodeURIComponent(breakdown)}`;
+  }
+
+  // 계정별 조회(insightsUrl)와 달리 accountId를 넘기지 않는다 — 서버가
+  // META_AD_ACCOUNT_IDS에 설정된 모든 계정을 알아서 병렬 조회해서 합친다.
+  function allInsightsUrl() {
+    return `/api/meta/insights/all?datePreset=${encodeURIComponent(
+      allDatePreset
+    )}&breakdown=${encodeURIComponent(allBreakdown)}`;
   }
 
   return (
@@ -432,6 +467,103 @@ export default function Home() {
             <InsightTable rows={insights.rows} />
           )}
           <RawJsonToggle data={insights.rawJson} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            전체 계정 통합 성과
+          </h2>
+          <p className="text-xs text-gray-400">
+            {ACCOUNT_OPTIONS.length}개 계정을 한 번에 조회해서 하나의 표로
+            합칩니다. 계정별 조회(위 섹션)와 완전히 같은 fields/breakdown
+            규칙을 쓰므로 결과 JSON 한 행의 형태는 동일합니다. 계정마다 커서가
+            달라 페이지네이션은 지원하지 않고, 계정당 첫 페이지만 합칩니다.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-1">
+              {DATE_PRESETS.map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  onClick={() => {
+                    setAllDatePreset(preset.value);
+                    allInsights.reset();
+                  }}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    allDatePreset === preset.value
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-gray-500">Breakdown:</span>
+            <div className="flex gap-1">
+              {BREAKDOWN_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setAllBreakdown(option.value);
+                    allInsights.reset();
+                  }}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    allBreakdown === option.value
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => allInsights.fetchFirstPage(allInsightsUrl())}
+              disabled={allInsights.status === "loading"}
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              전체 계정 조회
+            </button>
+          </div>
+
+          {allInsights.status === "loading" && (
+            <p className="text-sm text-gray-500">
+              Meta 데이터를 불러오는 중입니다...
+            </p>
+          )}
+          {allInsights.status === "error" && allInsights.error && (
+            <ErrorBox error={allInsights.error} />
+          )}
+          {allInsights.status === "success" &&
+            getAccountErrors(allInsights.rawJson).length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p className="font-medium">
+                  일부 계정 조회에 실패했습니다 (나머지 계정 데이터는 아래
+                  표에 정상 표시됩니다).
+                </p>
+                <ul className="mt-1 list-inside list-disc">
+                  {getAccountErrors(allInsights.rawJson).map((e) => (
+                    <li key={e.accountId}>
+                      {e.accountId}: {e.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          {allInsights.status === "success" && (
+            <InsightTable rows={allInsights.rows} />
+          )}
+          <RawJsonToggle data={allInsights.rawJson} />
         </section>
       </div>
     </div>

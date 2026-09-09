@@ -83,6 +83,10 @@ export interface MetaInsight {
 export interface MetaInsightsResponse {
   data: MetaInsight[];
   paging?: MetaPaging;
+  // /api/meta/insights/all(전체 계정 통합 조회)에서만 채워진다.
+  // 일부 계정 조회가 실패해도 나머지 계정 데이터는 그대로 보여주고,
+  // 실패한 계정만 여기에 기록한다.
+  accountErrors?: { accountId: string; message: string }[];
 }
 
 export interface MetaCampaign {
